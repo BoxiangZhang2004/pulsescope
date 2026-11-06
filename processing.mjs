@@ -1,6 +1,19 @@
 export class SOSFilter {
- constructor(sos){this.sos=sos;this.z=sos.map(()=>[0,0]);}
- next(x){for(let i=0;i<this.sos.length;i++){const [b0,b1,b2,a0,a1,a2]=this.sos[i],z=this.z[i],y=b0/a0*x+z[0];z[0]=b1/a0*x-a1/a0*y+z[1];z[1]=b2/a0*x-a2/a0*y;x=y;}return x;}
+ constructor(sos){this.sos=sos;this.reset();}
+ reset(){this.z=this.sos.map(()=>[0,0]);this.initialized=false;}
+ initialize(first){
+  // DF-II transposed steady state for a constant first input, propagated
+  // through every section (equivalent to sosfilt_zi(sos) * first).
+  let input=first;
+  for(let i=0;i<this.sos.length;i++){
+   const [b0,b1,b2,a0,a1,a2]=this.sos[i];
+   const gain=(b0+b1+b2)/(a0+a1+a2);
+   this.z[i]=[(gain-b0/a0)*input,(b2/a0-a2/a0*gain)*input];
+   input*=gain;
+  }
+  this.initialized=true;
+ }
+ next(x){if(!this.initialized)this.initialize(x);for(let i=0;i<this.sos.length;i++){const [b0,b1,b2,a0,a1,a2]=this.sos[i],z=this.z[i],y=b0/a0*x+z[0];z[0]=b1/a0*x-a1/a0*y+z[1];z[1]=b2/a0*x-a2/a0*y;x=y;}return x;}
 }
 const mean=x=>x.reduce((s,v)=>s+v,0)/x.length;
 const median=x=>{const a=x.slice().sort((a,b)=>a-b);return a.length?(a[Math.floor((a.length-1)/2)]+a[Math.ceil((a.length-1)/2)])/2:0;};
@@ -20,6 +33,6 @@ export function estimate(samples){if(samples.length<5000)return {valid:false,rea
 }
 export class SignalProcessor {
  constructor(config){this.config=config;this.reset();}
- reset(){this.p=new SOSFilter(this.config.ppg);this.e=new SOSFilter(this.config.ecg);this.q=new SOSFilter(this.config.qrs);this.count=0;}
- next(p,e){const pf=this.p.next(p),ef=this.e.next(e),q=this.q.next(e);this.count++;return {pf,ef,q,warm:this.count>1500};}
+ reset(){this.p=new SOSFilter(this.config.ppg);this.e=new SOSFilter(this.config.ecg);this.q=new SOSFilter(this.config.qrs);this.highP=new SOSFilter(this.config.highOrder?.ppg??this.config.ppg);this.highE=new SOSFilter(this.config.highOrder?.ecg??this.config.ecg);this.count=0;}
+ next(p,e){const pf=this.p.next(p),ef=this.e.next(e),q=this.q.next(e),pfHigh=this.highP.next(p),efHigh=this.highE.next(e);this.count++;return {pf,ef,q,pfHigh,efHigh,warm:this.count>1500};}
 }
