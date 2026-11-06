@@ -1,5 +1,5 @@
 import {FrameParser} from './protocol.mjs';
-import {SignalProcessor,estimate} from './processing.mjs';
+import {SignalProcessor,estimate} from './processing.mjs?v=20261106-ppg-rail';
 import config from './filter-config.mjs';
 const processor=new SignalProcessor(config);let hrBuffer=[],hrResult={valid:false,reason:'等待 13 秒信号'},hrAt=0,signalSegment=0;
 const $=id=>document.getElementById(id);
